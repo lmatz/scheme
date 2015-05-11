@@ -2,4 +2,4 @@
 
 A simple scheme interpreter supporting a subset of R5RS  
 
-(in progress, to support functions and garbage collection)
+(in progress, to garbage collection)
