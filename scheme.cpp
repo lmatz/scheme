@@ -25,6 +25,58 @@
 #define add_function(s_name,f_name)   \
         def_var_val(make_symbol(s_name), make_builtin_procedure(f_name), global_environment);
 
+#define get_type(type) \
+        if (type==0) {              \
+            printf("integer\n");    \
+        }                           \
+        else if (type==1) {         \
+            printf("real\n");       \
+        }                           \
+        else if (type==2) {         \
+            printf("boolean\n");    \
+        }                           \
+        else if (type==3) {         \
+            printf("character\n");  \
+        }                           \
+        else if (type==4) {         \
+            printf("string\n");     \
+        }                           \
+        else if (type==5) {         \
+            printf("pair\n");       \
+        }                           \
+        else if (type==6) {         \
+            printf("symbol\n");     \
+        }                           \
+        else if (type==7) {         \
+            printf("builtin_function\n");   \
+        }                           \
+        else if (type==8) {         \
+            printf("compound_function\n");  \
+        }                           \
+        else if (type==9) {         \
+            printf("empty_list\n"); \
+        }                           \
+        else if (type==10) {        \
+            printf("warn\n");       \
+        }                           \
+        else if (type==11) {        \
+            printf("INPUT PORT\n"); \
+        }                           \
+        else {                      \
+            printf("OUTPUT PORT\n");\
+        }
+
+/*********************************
+*                               *
+*                               *
+*                               *
+*  PART:  Global variable       *
+*                               *
+*                               *
+*                               *
+*********************************/
+
+
 typedef enum obj_type {
         INTEGER,
         REAL,
@@ -37,6 +89,8 @@ typedef enum obj_type {
         COMPOUND_PROC,
         EMPTY_LIST,
         WARN,
+        INPUT_PORT,
+        OUTPUT_PORT,
 } obj_type;
 
 typedef struct object {
@@ -76,6 +130,12 @@ typedef struct object {
         struct {
             char *value;
         }warn;
+        struct {
+            FILE *stream;
+        } input_port;
+        struct {
+            FILE *stream;
+        } output_port;
     }data;
 } object;
 
@@ -91,15 +151,26 @@ object* define_symbol;
 object* set_symbol;
 object* ok_symbol;
 object* if_symbol;
-object *lambda_symbol;
-object *empty_environment;
-object *global_environment;
+object* lambda_symbol;
+object* begin_symbol;
+object* cond_symbol;
+object* else_symbol;
+object* let_symbol;
+object* and_symbol;
+object* or_symbol;
+object* apply_symbol;
 
+object* empty_environment;
+object* global_environment;
+
+
+// forward decalaration
 
 object* read (FILE *in);
 void printer(object *obj);
 object* eval(object* exp, object* env);
 int is_compound_func(object* obj);
+
 
 
 /*********************************
@@ -330,11 +401,15 @@ object* make_warn(const char* buffer) {
     object *temp;
     
     temp=new_object();
-    temp->type=STRING;
+    temp->type=WARN;
     temp->data.string.value=(char *)malloc(sizeof(char)*(strlen(buffer)+1));
     strcpy(temp->data.string.value,buffer);
 
     return temp;
+}
+
+int is_warn(object* obj) {
+    return obj->type=WARN;
 }
 
 object* make_lambda(object *parameters, object *body) {
@@ -373,6 +448,13 @@ object* add_procedure(object* args) {
         if ( car(args)->type==INTEGER ) {
             res=res+(car(args))->data.integer.value;
         }
+        else if ( car(args)->type==PAIR ) {
+            // get_type(car(args)->type);
+            res=res+add_procedure(car(args))->data.integer.value;
+        }
+        else {
+            return make_warn("Exception in +: operand is not a number");
+        }
         args = cdr(args);
     }
     return make_integer(res);
@@ -392,6 +474,9 @@ object* sub_procedure(object* args) {
         if ( car(args)->type==INTEGER ) {
             res-=(car(args))->data.integer.value;
         }
+        else {
+            return make_warn("Exception in -: operand is not a number");
+        }
         args = cdr(args);
     }
 
@@ -405,6 +490,10 @@ object* mul_procedure(object* args) {
     while( !is_empty_list(args)) {
         if ( car(args)->type==INTEGER ) {
             res=res*(car(args))->data.integer.value;
+        }
+        else if ( car(args)->type==PAIR ) {
+            // get_type(car(args)->type);
+            res=res+mul_procedure(car(args))->data.integer.value;
         }
         args = cdr(args);
         c++;
@@ -479,6 +568,32 @@ object* greater_than_procedure(object* args) {
     }
     return True;
 }
+
+// object* and_procedure(object* args) {
+//     if( is_empty_list(args) ) {
+//         return True;
+//     }
+
+//     if ( car(args)==False ) {
+//         return False;
+//     }
+//     else {
+//         return and_procedure(cdr(args));
+//     }
+// }
+
+// object* or_procedure(object* args) {
+//     if( is_empty_list(args) ) {
+//         return False;
+//     }
+
+//     if ( car(args)==True ) {
+//         return True;
+//     }
+//     else {
+//         return and_procedure(cdr(args));
+//     }
+// }
 
 object* null_procedure(object* args) {
     return is_empty_list(car(args))?True:False;
@@ -612,6 +727,116 @@ int is_compound_func(object* obj) {
     return obj->type==COMPOUND_PROC;
 }
 
+
+/*********************************
+ *                               *
+ *                               *
+ *                               *
+ *  PART: I/O                    *
+ *                               *
+ *                               *
+ *                               *
+ *********************************/
+
+object* make_input_port(FILE* in) {
+    object* temp=NULL;
+
+    temp=new_object();
+    temp->type=INPUT_PORT;
+    temp->data.input_port.stream=in;
+    return temp;
+}
+
+int is_input_port(object* obj) {
+    return obj->type==INPUT_PORT;
+}
+
+object* make_output_port(FILE* out) {
+    object* temp=NULL;
+
+    temp=new_object();
+    temp->type=OUTPUT_PORT;
+    temp->data.output_port.stream=out;
+    return temp;
+}
+
+int is_output_port(object* obj) {
+    return obj->type==OUTPUT_PORT;
+}
+
+
+object* load_procedure(object* args) {
+    char *file=NULL;
+    FILE *in=NULL;
+    object* exp;
+    object* res;
+
+    file=car(args)->data.string.value;
+    in=fopen(file,"r");
+    if (in==NULL) {
+        return make_warn("Exception in Load: Cannot load the file");
+    }
+
+    while( (exp=read(in))!=NULL ) {
+        res=eval(exp,global_environment);
+    }
+    fclose(in);
+    return res;
+}
+
+object* read_procedure(object* args) {
+    return args;
+}
+
+object* open_input_port_procedure(object* args) {
+    char *file=NULL;
+    FILE *in=NULL;
+
+
+    file=car(args)->data.string.value;
+    in=fopen(file,"r");
+    if (in==NULL) {
+        return make_warn("Exception in open input port: Cannot open input port");
+    }
+    return make_input_port(in);
+}
+
+object* close_input_port_procedure(object* args) {
+    char res;
+
+    res=fclose(car(args)->data.input_port.stream);
+    if ( res==EOF ) {
+        return make_warn("Exception in close input port: Cannot close input port");
+    }
+    return ok_symbol;
+}
+
+object* open_output_port_procedure(object* args) {
+    char *file=NULL;
+    FILE *out=NULL;
+
+
+    file=car(args)->data.string.value;
+    out=fopen(file,"w");
+    if (out==NULL) {
+        return make_warn("Exception in open input port: Cannot open input port");
+    }
+    return make_output_port(out);
+}
+
+object* close_output_port_procedure(object* args) {
+    char res;
+
+    res=fclose(car(args)->data.output_port.stream);
+    if ( res==EOF ) {
+        return make_warn("Exception in close input port: Cannot close input port");
+    }
+    return ok_symbol;
+}
+
+
+
+
 /*********************************
  *                               *
  *                               *
@@ -659,8 +884,9 @@ object* loop_up_env(object* var, object* env) {
         }
         env=enclosing_env(env);
     }
-    fprintf(stderr," unbound variable\n");
-    exit(1);
+    // fprintf(stderr," unbound variable\n");
+    // exit(1);
+    return make_warn("unbound variable");
 }
 
 void add_to_frame(object* var,object* val, object* frame) {
@@ -675,8 +901,7 @@ object* make_frame(object* var,object* val) {
 object* extend_env(object* var,object* val, object* old_env) {
     return cons(make_frame(var,val),old_env);
 }
-
-void set_var_val(object* var, object* val, object* env) {
+int set_var_val(object* var, object* val, object* env) {
     object* frame;
     object* var_list;
     object* val_list;
@@ -688,15 +913,16 @@ void set_var_val(object* var, object* val, object* env) {
         while ( !is_empty_list(var_list) ) {
             if (var==car(var_list) ) {
                 set_car(val_list, val);
-                return;
+                return 1;
             }
             var_list=cdr(var_list);
             val_list=cdr(val_list);
         }
         env=enclosing_env(env);
     }
-    fprintf(stderr,"unbound variable\n");
-    exit(1);
+    // fprintf(stderr,"unbound variable\n");
+    // exit(1);
+    return 0;
 }
 
 void def_var_val(object* var, object* val, object* env) {
@@ -747,7 +973,7 @@ char peek(FILE *in) {
 void skip_space(FILE *in) {
     char c;
     
-    DEBUG("enter skip space!\n");
+    // DEBUG("enter skip space!\n");
 
     while ( (c = getc(in))!= EOF) {
         
@@ -783,29 +1009,32 @@ int is_ex_al(char c) {
 //    c == '"'   || c == ';';
 //}
 
-void get_expected_string(FILE *in, const char * expect) {
+int get_expected_string(FILE *in, const char * expect) {
     char c;
     
     while( *expect!='\0' ) {
         c=getc(in);
         if ( c != *expect ) {
-            fprintf(stderr, "unexpected character!\nExit!\n");
-            exit(1);
+            // fprintf(stderr, "unexpected character!\nExit!\n");
+            // exit(1);
+            return 0;
         }
         expect++;
     }
+    return 1;
 }
 
-void peek_expected_delimiter(FILE *in, const char *expect) {
+int peek_expected_delimiter(FILE *in, const char *expect) {
     char c;
     c=peek(in);
     while ( c != '\0' ) {
         if (c==*expect) {
-            return;
+            return 1;
         }
         expect++;
     }
-    fprintf(stderr,"no expected dilimiter followed!\nExit!\n");
+    // fprintf(stderr,"no expected dilimiter followed!\nExit!\n");
+    return 0;
 }
 
 object* get_symbol(FILE *in) {
@@ -819,8 +1048,9 @@ object* get_symbol(FILE *in) {
             buffer[offset++]=c;
         }
         else {
-            fprintf(stderr,"Symbol name is too long!\nExit!\n");
-            exit(1);
+            // fprintf(stderr,"Symbol name is too long!\nExit!\n");
+            // exit(1);
+            return make_warn("Symbol name is too long!");
         }
         c=getc(in);
     }
@@ -831,8 +1061,9 @@ object* get_symbol(FILE *in) {
         return make_symbol(buffer);
     }
     else {
-        fprintf(stderr,"Symbol is not followed by a valid delimiter!\nExit!\n");
-        exit(1);
+        // fprintf(stderr,"Symbol is not followed by a valid delimiter!\nExit!\n");
+        // exit(1);
+        return make_warn("Symbol is not followed by a valid delimiter!");
     }
 }
 
@@ -864,6 +1095,7 @@ object* get_pair(FILE *in) {
         c=getc(in);
         if ( c!=')' ) {
             DEBUG("Parentheses don't match!\nExit!\n");
+            return make_warn("Parentheses don't match!");
         }
         return cons(car,cdr);
     }
@@ -898,7 +1130,8 @@ object* get_number(FILE *in) {
     ungetc(c,in);
     if (d_sign>1) {
         DEBUG("Invalid float number!\nExit!\n");
-        exit(1);
+        // exit(1);
+        return make_warn("Invalid float number!");
     }
     else if (d_sign==0) {
         int loop=0;
@@ -937,24 +1170,32 @@ object* get_character(FILE *in) {
     switch(c) {
         case 's':
             if ( peek(in)=='p' ) {
-                get_expected_string(in,"pace");
+                if ( !get_expected_string(in,"pace") ) {
+                    return make_warn("unexpected character!");
+                }
                 peek_expected_delimiter(in," \n");
                 return make_character(' ');
             }
             break;
         case 'n':
             if ( peek(in)=='e' ) {
-                get_expected_string(in,"ewline");
+                if ( !get_expected_string(in,"ewline") ) {
+                    return make_warn("unexpected character!");
+                }
                 peek_expected_delimiter(in," \n");
                 return make_character('\n');
             }
             break;
         case '(':
-                peek_expected_delimiter(in," \n");
+                if ( !peek_expected_delimiter(in," \n") ) {
+                    return make_warn("no expected dilimiter followed!");
+                }
                 return make_character('(');
                 break;        
     }
-    peek_expected_delimiter(in," \n");
+    if ( !peek_expected_delimiter(in," \n") ) {
+        return make_warn("no expected dilimiter followed!");
+    }
     return make_character(c);
 }
 
@@ -978,7 +1219,7 @@ object* read (FILE *in) {
     skip_space(in);
     c=getc(in);
     
-    DEBUG("enter the read function!\n");
+    // DEBUG("enter the read function!\n");
 
     if ( c=='#'  ) { // try to get character
         
@@ -997,8 +1238,9 @@ object* read (FILE *in) {
             case '\\':
                 return get_character(in);
             default:
-                fprintf(stderr, "unknown boolean literal\n");
-                exit(1);
+                // fprintf(stderr, "unknown boolean literal\n");
+                // exit(1);
+            return make_warn("unknown boolean literal");
         }
     }
     else if ( isdigit(c) ||  ( c=='-' && isdigit(peek(in)) )    ) { //try to get number: integer & double
@@ -1027,17 +1269,18 @@ object* read (FILE *in) {
                 }
             }
             if (c == EOF) {
-                fprintf(stderr, "non-terminated string literal\n");
-                exit(1);
+                // fprintf(stderr, "non-terminated string literal\n");
+                // exit(1);
+                return make_warn("non-terminated string literal");
             }
             if (i < 256 - 1) {
                 buffer[i++] = c;
             }
             else {
-                fprintf(stderr,
-                        "string too long. Maximum length is %d\n",
-                        256);
-                exit(1);
+                // fprintf(stderr,
+                //         "string too long. Maximum length is %d\n",
+                //         256);
+                return make_warn( "string too long");
             }
         }
         buffer[i]='\0';
@@ -1056,10 +1299,14 @@ object* read (FILE *in) {
     else if (c=='\'') {
         return cons(quote_symbol,cons(read(in),empty_list));
     }
+    else if (c!=EOF) {
+        return make_warn("Read: invalid grammar!");
+    }
     else {
         DEBUG("read:%c",c);
         DEBUG("invalid grammar!\nExit!\n");
         exit(1);
+        // return make_warn("Read: invalid grammar!");
     }
     return new_object();
 }
@@ -1157,7 +1404,12 @@ object* if_predicate(object* exp) {
 }
 
 object* if_true(object* exp) {
-    return caddr(exp);
+    if (is_empty_list(caddr(exp))) {
+        return True;
+    }
+    else {
+        return caddr(exp);
+    }
 }
 
 object* if_false(object* exp) {
@@ -1191,13 +1443,13 @@ object* rest_operands(object* exp) {
     return cdr(exp);
 }
 
-object* operand_list(object* exp, object* env) {
+object* eval_operand_list(object* exp, object* env) {
     if ( exp==empty_list ) {
         return empty_list;
     }
     else {
         return cons(eval(first_operand(exp), env),
-                    operand_list(rest_operands(exp),env));
+                    eval_operand_list(rest_operands(exp),env));
     }
 }
 
@@ -1225,12 +1477,175 @@ object* rest_exp(object* exp) {
     return cdr(exp);
 }
 
-object* eval_assignment(object* exp, object* env) {
-    set_var_val(assignment_var(exp), eval(assignment_val(exp),env),env);
-    return ok_symbol;
+int is_begin(object* exp) {
+    return is_pair(exp) && is_symbol(car(exp)) && car(exp)==begin_symbol;
 }
 
-object* eval_def(object* exp, object* env) {
+object* begin_body(object* exp) {
+    return cdr(exp);
+}
+
+int is_cond(object* exp) {
+    return is_pair(exp) && is_symbol(car(exp)) && car(exp)==cond_symbol;
+}
+
+object* cond_body(object* exp) {
+    return cdr(exp);
+}
+
+object* cond_predicate(object* exp) {
+    return car(exp);
+}
+
+object* make_if(object* predicate, object* consequence, object* alternative) {
+    return cons(if_symbol, cons(predicate, cons(consequence, cons(alternative, empty_list))));
+}
+
+object* make_begin(object* exp) {
+    return cons(begin_symbol,exp);
+}
+
+object* cond_consequence(object* exp) {
+    object* first;
+    object* rest;
+
+    first=cadr(exp);
+    rest=cddr(exp);
+    if ( is_empty_list(rest) ) {
+        return first;
+    }
+    else {
+        return make_begin(cdr(exp));
+    }
+}
+
+int is_cond_else(object* exp) {
+    return is_symbol(car(exp)) && car(exp)==else_symbol;
+}
+
+object* convert_to_if(object* exp) {
+    object* first;
+    object* rest;
+
+    if ( is_empty_list(exp) ) {
+        return False;
+    }
+    else { 
+        first=first_exp(exp);
+        rest=rest_exp(exp);
+    
+        if ( is_cond_else(first) ) {
+            DEBUG("cond else\n");
+            if ( is_empty_list(rest) ) {
+                return  cond_consequence(first);
+            }
+            else {
+                return make_warn("cond: else is not the last expression");
+            }
+        }
+        else {
+            return make_if(cond_predicate(first), cond_consequence(first), convert_to_if(rest));
+        }
+    }
+}
+
+int is_let(object* exp) {
+    return is_pair(exp) && is_symbol(car(exp)) && car(exp)==let_symbol; 
+}
+
+object* let_bindings_parameters(object* exp) {
+    return is_empty_list(exp)? empty_list : cons( caar(exp) , let_bindings_parameters(cdr(exp)) );
+}
+
+object* let_bindings_arguments(object* exp) {
+    return is_empty_list(exp)? empty_list : cons( cadar(exp) , let_bindings_arguments(cdr(exp)) );
+}
+
+object* let_parameters(object* exp) {
+    return let_bindings_parameters(cadr(exp));
+}
+
+object* let_arguments(object* exp) {
+    return let_bindings_arguments(cadr(exp));
+}
+
+object* let_body(object* exp) {
+    return cddr(exp);
+}
+object* make_function(object* function, object* operand) {
+    return cons( function, operand );
+}
+
+int is_apply(object* exp) {
+    return is_pair(exp) && is_symbol(car(exp)) && car(exp)==apply_symbol;
+}
+
+object* apply_operator(object* exp) {
+    if ( is_empty_list(cdr(exp)) ) {
+        return make_warn("Exception: invalid syntax (apply)");
+    }
+    else {
+        return cadr(exp);
+    }
+}
+
+object* apply_operand(object* exp) {
+    return cddr(exp);
+}
+
+int is_and_or(object* exp) {
+    return is_pair(exp) && is_symbol(car(exp)) && (car(exp)==and_symbol || car(exp)==or_symbol);
+}
+
+object* eval_and(object* exp, object* env) {
+    if ( is_empty_list(exp) ) {
+        return True;
+    }
+
+    if ( eval(car(exp),env)==False  ) {
+        return False;
+    }
+    else {
+        return eval_and(cdr(exp),env);
+    }
+}
+
+object* eval_or(object* exp, object* env) {
+    if ( is_empty_list(exp) ) {
+        return False;
+    }
+
+    if ( eval(car(exp),env)==True ) {
+        return True;
+    }
+    else {
+        return eval_or(cdr(exp),env);
+    }
+}
+
+object* eval_and_or(object* exp, object* env) {
+    if ( car(exp)==and_symbol ) {
+        return eval_and(cdr(exp),env);
+    }
+    else {
+        return eval_or(cdr(exp),env);
+    }
+}
+
+object* eval_assignment(object* exp, object* env) {
+    if ( set_var_val(assignment_var(exp), eval(assignment_val(exp),env),env) ) {
+        return ok_symbol;
+    }
+    else {
+        return make_warn("Unbounded variable");
+    }
+}
+
+object* eval_def(object* exp , object* env) {
+    if ( is_empty_list(cdr(exp)) || is_empty_list(cddr(exp)) ) {
+        return make_warn("Exception: invalid syntax (define)");
+    }
+
     def_var_val(def_var(exp), eval(def_val(exp),env),env);
     return ok_symbol;
 }
@@ -1242,8 +1657,10 @@ object* eval(object* exp, object* env) {
     DEBUG("start to evaluate!\n");
 
     while(1) {
+
         if ( is_self_value(exp) ) {
-            DEBUG("eval: self_value: %d\n",exp->type);
+            DEBUG("eval: self_value: \n");
+            get_type(exp->type);
             return exp;
         }
         else if ( is_variable(exp) ) {
@@ -1266,14 +1683,45 @@ object* eval(object* exp, object* env) {
             DEBUG("eval: if\n");
             exp= is_true(eval(if_predicate(exp),env)) ? if_true(exp):if_false(exp);
         }
+        else if ( is_begin(exp) ) {
+            DEBUG("eval: begin\n");
+            exp = begin_body(exp);
+            while( !is_last_exp(exp) ) {
+                DEBUG("eval begin: is NOT last expression\n");
+                eval(first_exp(exp),env);
+                exp=rest_exp(exp);
+            }
+            exp=first_exp(exp);
+        }
+        else if( is_cond(exp) ) {
+            DEBUG("eval: cond\n");
+            if ( is_empty_list(cond_body(exp)) ) {
+                return make_warn("Exception: invalid syntax (cond)");
+            }
+            exp= convert_to_if(cond_body(exp));
+        }
+        else if( is_let(exp) ) {
+            DEBUG("eval: let\n");
+            exp = make_function( make_lambda(let_parameters(exp),let_body(exp)),let_arguments(exp));
+        }
         else if ( is_lambda(exp) ) {
             DEBUG("eval: lambda\n");
             return make_compound_func(lambda_parameters(exp),lambda_body(exp),env);
         }
+        else if ( is_and_or(exp) ) {
+            DEBUG("eval: and / or\n");
+            return eval_and_or((exp),env);
+        }
+        else if ( is_apply(exp) ) {
+            DEBUG("eval: apply\n");
+            proc=apply_operator(exp);
+            args=apply_operand(exp);
+            exp= cons(proc,args);
+        }
         else if ( is_function(exp) ) {
             DEBUG("eval: function\n");
             proc= eval(function(exp), env);
-            args= operand_list(operands(exp), env);
+            args= eval_operand_list(operands(exp), env);
             if ( is_builtin_procedure(proc) ) {
                 DEBUG("eval: builtin function\n");
                 return (proc->data.builtin_proc.func)(args);
@@ -1283,9 +1731,9 @@ object* eval(object* exp, object* env) {
                 env = extend_env(proc->data.compound_proc.parameters, args, proc->data.compound_proc.env);
                 exp=proc->data.compound_proc.body;
 
-                DEBUG("eval: compound function: type: %d",car(exp)->type);
+                DEBUG("eval: compound function: type: %d\n",car(exp)->type);
                 while( !is_last_exp(exp) ) {
-                    DEBUG("eval: is NOT last expression , type: %d\n",cdr(exp)->type);
+                    DEBUG("eval compound function: is NOT last expression , type: %d\n",cdr(exp)->type);
                     eval(first_exp(exp),env);
                     exp=rest_exp(exp);
                 }
@@ -1296,9 +1744,20 @@ object* eval(object* exp, object* env) {
                 exit(1);
             }
         }
+        else if ( is_warn(exp) ) {
+            return exp;
+        }
         else {
             fprintf(stderr, "cannot eval unknow expression\n");
             exit(1);
+        }
+
+        if (proc->type==WARN) {
+            return proc;
+        }
+
+        if (args->type==WARN) {
+            return args;
         }
     }
     
@@ -1399,6 +1858,7 @@ void printer(object *obj) {
         case EMPTY_LIST:
             break;
         case WARN:
+            fprintf(stdout,"**%s**",obj->data.warn.value);
             break;
         default:
             fprintf(stderr,"Unknow type!\nExit!\n");
@@ -1425,7 +1885,15 @@ void init() {
     set_symbol=make_symbol("set!");
     ok_symbol=make_symbol("ok");
     if_symbol=make_symbol("if");
-    lambda_symbol = make_symbol("lambda");
+    lambda_symbol=make_symbol("lambda");
+    begin_symbol=make_symbol("begin");
+    cond_symbol=make_symbol("cond");
+    else_symbol=make_symbol("else");
+    let_symbol=make_symbol("let");
+    and_symbol=make_symbol("and");
+    or_symbol=make_symbol("or");
+    apply_symbol=make_symbol("apply");
+
 
     empty_environment=empty_list;
     global_environment=setup_env();
@@ -1438,6 +1906,8 @@ void init() {
     add_function(">",greater_than_procedure);
     add_function("<",less_than_procedure);
 
+    // add_function("and",and_procedure);
+    // add_function("or",or_procedure);
 
     add_function("null?",null_procedure);
     add_function("boolean?",boolean_procedure);
@@ -1464,21 +1934,37 @@ void init() {
     add_function("set-cdr!",set_cdr_procedure);
     add_function("list",list_procedure);
 
+    add_function("load"             , load_procedure);
+    add_function("open-input-port"  , open_input_port_procedure);
+    add_function("close-input-port" , close_input_port_procedure);
+    // add_function("input-port?"      , is_input_port_procedure);
+    // add_function("read"             , read_procedure);
+    // add_function("read-char"        , read_char_procedure);
+    // add_function("peek-char"        , peek_char_procedure);
+    // add_function("eof-object?"      , is_eof_object_procedure);
+    add_function("open-output-port" , open_output_port_procedure);
+    add_function("close-output-port", close_output_port_procedure);
+    // add_function("output-port?"     , is_output_port_procedure);
+    // add_function("write-char"       , write_char_procedure);
+    // add_function("write"            , write_procedure);
+
 }
 
 void sighandler(int signum)
 {
-   printf("> ");
+
 }
 
 int main(int argc, char**argv) {
 
     if ( argc>1 && !strcmp(argv[1],"-d") ) {
-        printf("Debug mode!");
+        printf("Debug mode!\n");
         debug=1;
     }
-    printf("********* Little_schemer ********\n"
-           "ctrl-d to exit.\n");
+    printf("********************************\n\n\n"
+        "          Little Schemer          \n\n\n"
+        "          ctrl-d to exit.\n\n\n"
+           "********************************\n");
     
     init();
     signal(SIGINT, sighandler);
