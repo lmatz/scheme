@@ -1,6 +1,6 @@
 //
 //  scheme.cpp
-// 
+//  compiler
 //
 //  Created by martin823
 //  
@@ -22,8 +22,10 @@
            }                         \
        } while(0)
 
+
 #define add_function(s_name,f_name)   \
         def_var_val(make_symbol(s_name), make_builtin_procedure(f_name), global_environment);
+
 
 #define get_type(type) \
         if (type==0) {              \
@@ -973,12 +975,9 @@ char peek(FILE *in) {
 void skip_space(FILE *in) {
     char c;
     
-    // DEBUG("enter skip space!\n");
 
     while ( (c = getc(in))!= EOF) {
         
-        // printf("loop: c: %c!\n",c);
-
         if (isspace(c)) {
             continue;
         }
@@ -989,7 +988,6 @@ void skip_space(FILE *in) {
         ungetc(c, in);
         break;
     }
-    // printf("leave skip space!\n");
 }
 
 int is_ex_al(char c) {
@@ -1056,7 +1054,6 @@ object* get_symbol(FILE *in) {
     }
     if ( isspace(c) || c==')' || c=='(' ) {
         buffer[offset]='\0';
-        DEBUG("Get symbol name: %s\n",buffer);
         ungetc(c,in);
         return make_symbol(buffer);
     }
@@ -1072,13 +1069,11 @@ object* get_pair(FILE *in) {
     object *car;
     object *cdr;
     
-    DEBUG("start to get pair!\n");
     
     skip_space(in);
 
     if (peek(in)==')') {
         getc(in);
-        DEBUG("Get empty list\n");
         return empty_list;
     }
     
@@ -1218,12 +1213,8 @@ object* read (FILE *in) {
     
     skip_space(in);
     c=getc(in);
-    
-    // DEBUG("enter the read function!\n");
 
-    if ( c=='#'  ) { // try to get character
-        
-        // printf("character!\n");
+    if ( c=='#'  ) { // get character
     
         c = getc(in);
         switch (c) {
@@ -1238,21 +1229,16 @@ object* read (FILE *in) {
             case '\\':
                 return get_character(in);
             default:
-                // fprintf(stderr, "unknown boolean literal\n");
-                // exit(1);
             return make_warn("unknown boolean literal");
         }
     }
     else if ( isdigit(c) ||  ( c=='-' && isdigit(peek(in)) )    ) { //try to get number: integer & double
         
-        // printf("digit!\n");
         
         ungetc(c,in);
         return get_number(in);
     }
     else if ( c=='"' ) { // try to get string
-
-        // fprintf(stdout,"start to get string!\n");
         
         int i=0;
         char buffer[256];
@@ -1269,23 +1255,16 @@ object* read (FILE *in) {
                 }
             }
             if (c == EOF) {
-                // fprintf(stderr, "non-terminated string literal\n");
-                // exit(1);
                 return make_warn("non-terminated string literal");
             }
             if (i < 256 - 1) {
                 buffer[i++] = c;
             }
             else {
-                // fprintf(stderr,
-                //         "string too long. Maximum length is %d\n",
-                //         256);
                 return make_warn( "string too long");
             }
         }
         buffer[i]='\0';
-    
-        // fprintf(stderr,"before make string!");
         
         return make_string(buffer);
     }
@@ -1303,8 +1282,6 @@ object* read (FILE *in) {
         return make_warn("Read: invalid grammar!");
     }
     else {
-        DEBUG("read:%c",c);
-        DEBUG("invalid grammar!\nExit!\n");
         exit(1);
         // return make_warn("Read: invalid grammar!");
     }
@@ -1413,7 +1390,7 @@ object* if_true(object* exp) {
 }
 
 object* if_false(object* exp) {
-    DEBUG("if_false: exp type: %d",exp->type);
+    DEBUG("if_false: exp type: %d\n",exp->type);
     if (is_empty_list(cdddr(exp))) {
         DEBUG("if_false: alternative is empty\n");
         return False;
@@ -1659,8 +1636,8 @@ object* eval(object* exp, object* env) {
     while(1) {
 
         if ( is_self_value(exp) ) {
-            DEBUG("eval: self_value: \n");
-            get_type(exp->type);
+            // DEBUG("eval: self_value: \n");
+            // get_type(exp->type);
             return exp;
         }
         else if ( is_variable(exp) ) {
@@ -1668,11 +1645,11 @@ object* eval(object* exp, object* env) {
             return loop_up_env(exp,env);
         }
         else if ( is_quote(exp) ) {
-            DEBUG("eval: quote\n");
+            // DEBUG("eval: quote\n");
             return content_of_quote(exp);
         }
         else if ( is_assignment(exp) ) {
-            DEBUG("eval: assignment\n");
+            // DEBUG("eval: assignment\n");
             return eval_assignment(exp,env);
         }
         else if ( is_def(exp) ) {
@@ -1680,28 +1657,28 @@ object* eval(object* exp, object* env) {
             return eval_def(exp,env);
         }
         else if ( is_if(exp) ) {
-            DEBUG("eval: if\n");
+            // DEBUG("eval: if\n");
             exp= is_true(eval(if_predicate(exp),env)) ? if_true(exp):if_false(exp);
         }
         else if ( is_begin(exp) ) {
-            DEBUG("eval: begin\n");
+            // DEBUG("eval: begin\n");
             exp = begin_body(exp);
             while( !is_last_exp(exp) ) {
-                DEBUG("eval begin: is NOT last expression\n");
+                // DEBUG("eval begin: is NOT last expression\n");
                 eval(first_exp(exp),env);
                 exp=rest_exp(exp);
             }
             exp=first_exp(exp);
         }
         else if( is_cond(exp) ) {
-            DEBUG("eval: cond\n");
+            // DEBUG("eval: cond\n");
             if ( is_empty_list(cond_body(exp)) ) {
                 return make_warn("Exception: invalid syntax (cond)");
             }
             exp= convert_to_if(cond_body(exp));
         }
         else if( is_let(exp) ) {
-            DEBUG("eval: let\n");
+            // DEBUG("eval: let\n");
             exp = make_function( make_lambda(let_parameters(exp),let_body(exp)),let_arguments(exp));
         }
         else if ( is_lambda(exp) ) {
@@ -1709,7 +1686,7 @@ object* eval(object* exp, object* env) {
             return make_compound_func(lambda_parameters(exp),lambda_body(exp),env);
         }
         else if ( is_and_or(exp) ) {
-            DEBUG("eval: and / or\n");
+            // DEBUG("eval: and / or\n");
             return eval_and_or((exp),env);
         }
         else if ( is_apply(exp) ) {
@@ -1733,7 +1710,7 @@ object* eval(object* exp, object* env) {
 
                 DEBUG("eval: compound function: type: %d\n",car(exp)->type);
                 while( !is_last_exp(exp) ) {
-                    DEBUG("eval compound function: is NOT last expression , type: %d\n",cdr(exp)->type);
+                    // DEBUG("eval compound function: is NOT last expression , type: %d\n",cdr(exp)->type);
                     eval(first_exp(exp),env);
                     exp=rest_exp(exp);
                 }
@@ -1796,9 +1773,9 @@ void print_pair(object* obj) {
 
 void printer(object *obj) {
     char *str=NULL;
-    DEBUG("object type: %d",obj->type);
-    DEBUG("start to print!\n");
-
+    // DEBUG("object type: %d",obj->type);
+    // DEBUG("start to print!\n");
+    fprintf(stdout,"RESULT:\n");
 
     switch(obj->type) {
         case INTEGER:
@@ -1950,6 +1927,19 @@ void init() {
 
 }
 
+void loadstd() {
+    FILE * std;
+
+    std = fopen ("std.scm" , "r");
+    if (std == NULL) {
+        perror ("Error opening file");
+    }
+    else {
+        eval(read(std), global_environment);
+        fclose (std);
+    }
+}
+
 void sighandler(int signum)
 {
 
@@ -1967,6 +1957,7 @@ int main(int argc, char**argv) {
            "********************************\n");
     
     init();
+    loadstd();
     signal(SIGINT, sighandler);
     while (1) {
         printf("> ");
