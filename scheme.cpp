@@ -525,6 +525,16 @@ object* div_procedure(object* args) {
     return make_integer((int)res);
 }
 
+object* mod_procedure(object* args) {
+    int res=0;
+    if ( car(args)->type==INTEGER && 
+        cadr(args)->type==INTEGER && 
+        is_empty_list(cddr(args))) {
+        res = car(args)->data.integer.value % cadr(args)->data.integer.value;
+    }
+    return make_integer(res);
+}
+
 object* num_equal_procedure(object* args) {
     long value=0;
 
@@ -1205,14 +1215,27 @@ object* get_character(FILE *in) {
  *                               *
  *********************************/
 
-
+void get_comment(FILE *in)  {
+    char c;
+    c=getc(in);
+    while ( c!='\n' ) {
+        c=getc(in);
+    }
+}
 
 object* read (FILE *in) {
     char c;
     char temp;
+
+    DEBUG("reading\n");
     
     skip_space(in);
     c=getc(in);
+
+    while ( c==';' ) {
+        get_comment(in);
+        c=getc(in);
+    }
 
     if ( c=='#'  ) { // get character
     
@@ -1879,6 +1902,7 @@ void init() {
     add_function("-",sub_procedure);
     add_function("*",mul_procedure);
     add_function("/",div_procedure);
+    add_function("mod",mod_procedure);
     add_function("=",num_equal_procedure);
     add_function(">",greater_than_procedure);
     add_function("<",less_than_procedure);
@@ -1928,21 +1952,24 @@ void init() {
 }
 
 void loadstd() {
-    FILE * std;
+    FILE *std;
 
-    std = fopen ("std.scm" , "r");
+    std = fopen("std.scm" , "r");
     if (std == NULL) {
-        perror ("Error opening file");
+        fprintf(stdout,"Error opening file\n");
     }
     else {
-        eval(read(std), global_environment);
-        fclose (std);
+        while ( peek(std)!=EOF ) {
+            printer(eval(read(std), global_environment));
+        }
     }
+    // fprintf(stdout,"finish reading std\n");
+    fclose (std);
 }
 
 void sighandler(int signum)
 {
-
+    printf("\n> ");
 }
 
 int main(int argc, char**argv) {
