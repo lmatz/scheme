@@ -10,6 +10,7 @@
 
 #include "object.h"
 #include "builtin.h"
+#include "env.h"
 
 extern object* empty_list;
 extern object* False;

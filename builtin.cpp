@@ -1,5 +1,14 @@
 #include "builtin.h"
 
+#define DEBUG(...)                   \
+       do  {                         \
+           if (debug==1) {           \
+            fprintf(stderr, __VA_ARGS__);     \
+           }                         \
+       } while(0)
+
+extern int debug;
+
 object* make_builtin_procedure( object *(*func)(object* arguments) ) {
     object* obj;
 

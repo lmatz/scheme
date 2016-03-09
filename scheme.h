@@ -10,6 +10,7 @@
 #include "eval.h"
 #include "parse.h"
 #include "printer.h"
+#include "env.h"
 
 
 extern object* empty_list;
