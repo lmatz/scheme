@@ -210,4 +210,8 @@ int is_builtin_procedure( object* obj);
 
 int is_compound_func(object* obj);
 
+int is_input_port(object* obj);
+
+int is_output_port(object* obj);
+
 #endif

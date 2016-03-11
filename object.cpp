@@ -323,6 +323,14 @@ int is_compound_func(object* obj) {
     return obj->type==COMPOUND_PROC;
 }
 
+int is_input_port(object* obj) {
+    return obj->type==INPUT_PORT;
+}
+
+int is_output_port(object* obj) {
+    return obj->type==OUTPUT_PORT;
+}
+
 void init_symbol() {
     empty_list=new_object();
     empty_list->type=EMPTY_LIST;

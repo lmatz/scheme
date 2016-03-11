@@ -11,6 +11,7 @@
 #include "parse.h"
 #include "printer.h"
 #include "env.h"
+#include "io.h"
 
 
 extern object* empty_list;

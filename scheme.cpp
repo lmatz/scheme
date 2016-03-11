@@ -1,10 +1,6 @@
 //
 //  scheme.cpp
-//  compiler
-//
-//  Created by martin823
-//  
-//
+//  lmatz
 
 #include "scheme.h"
 
@@ -63,112 +59,6 @@ int debug=0;
         else {                      \
             printf("OUTPUT PORT\n");\
         }
-
-/*********************************
- *                               *
- *                               *
- *                               *
- *  PART: I/O                    *
- *                               *
- *                               *
- *                               *
- *********************************/
-
-object* make_input_port(FILE* in) {
-    object* temp=NULL;
-
-    temp=new_object();
-    temp->type=INPUT_PORT;
-    temp->data.input_port.stream=in;
-    return temp;
-}
-
-int is_input_port(object* obj) {
-    return obj->type==INPUT_PORT;
-}
-
-object* make_output_port(FILE* out) {
-    object* temp=NULL;
-
-    temp=new_object();
-    temp->type=OUTPUT_PORT;
-    temp->data.output_port.stream=out;
-    return temp;
-}
-
-int is_output_port(object* obj) {
-    return obj->type==OUTPUT_PORT;
-}
-
-
-object* load_procedure(object* args) {
-    char *file=NULL;
-    FILE *in=NULL;
-    object* exp;
-    object* res;
-
-    file=car(args)->data.string.value;
-    in=fopen(file,"r");
-    if (in==NULL) {
-        return make_warn("Exception in Load: Cannot load the file");
-    }
-
-    while( (exp=read(in))!=NULL ) {
-        res=eval(exp,global_environment);
-    }
-    fclose(in);
-    return res;
-}
-
-object* read_procedure(object* args) {
-    return args;
-}
-
-object* open_input_port_procedure(object* args) {
-    char *file=NULL;
-    FILE *in=NULL;
-
-
-    file=car(args)->data.string.value;
-    in=fopen(file,"r");
-    if (in==NULL) {
-        return make_warn("Exception in open input port: Cannot open input port");
-    }
-    return make_input_port(in);
-}
-
-object* close_input_port_procedure(object* args) {
-    char res;
-
-    res=fclose(car(args)->data.input_port.stream);
-    if ( res==EOF ) {
-        return make_warn("Exception in close input port: Cannot close input port");
-    }
-    return ok_symbol;
-}
-
-object* open_output_port_procedure(object* args) {
-    char *file=NULL;
-    FILE *out=NULL;
-
-
-    file=car(args)->data.string.value;
-    out=fopen(file,"w");
-    if (out==NULL) {
-        return make_warn("Exception in open input port: Cannot open input port");
-    }
-    return make_output_port(out);
-}
-
-object* close_output_port_procedure(object* args) {
-    char res;
-
-    res=fclose(car(args)->data.output_port.stream);
-    if ( res==EOF ) {
-        return make_warn("Exception in close input port: Cannot close input port");
-    }
-    return ok_symbol;
-}    
     
 void init() {
 
@@ -216,14 +106,14 @@ void init() {
     add_function("load"             , load_procedure);
     add_function("open-input-port"  , open_input_port_procedure);
     add_function("close-input-port" , close_input_port_procedure);
-    // add_function("input-port?"      , is_input_port_procedure);
+    add_function("input-port?"      , is_input_port_procedure);
     // add_function("read"             , read_procedure);
     // add_function("read-char"        , read_char_procedure);
     // add_function("peek-char"        , peek_char_procedure);
     // add_function("eof-object?"      , is_eof_object_procedure);
     add_function("open-output-port" , open_output_port_procedure);
     add_function("close-output-port", close_output_port_procedure);
-    // add_function("output-port?"     , is_output_port_procedure);
+    add_function("output-port?"     , is_output_port_procedure);
     // add_function("write-char"       , write_char_procedure);
     // add_function("write"            , write_procedure);
 
